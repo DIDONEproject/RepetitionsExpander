@@ -251,20 +251,17 @@ def slur_processing(part):
 def file_dialog(root, file_formats, final_dir):
     file_names = filedialog.askopenfilenames(parent = root, initialdir=os.getcwd(), title='Choose one or more files', filetypes = file_formats)
     print("FILES CHOOSED: ", file_names) 
-    progress = ttk.Progressbar(root, orient = tk.HORIZONTAL, length = 100, mode = "determinate")
-    progress.pack(pady = 10)
-    progress['maximum'] = len(file_names)
-    progress.start()
-    root.update_idletasks()
-    progress['value'] = 0
+    
+    progress = ttk.Progressbar(root, orient = tk.HORIZONTAL, length = 100, mode = "determinate", maximum=len(file_names))
+    progress.pack()
+    #progress.start()
+    root.update()
     
     if not os.path.isdir(final_dir):
         os.mkdir(final_dir)
     if len(file_names) != 0:
-        value = 100/len(file_names)
-        progress.step(1)
-        root.update_idletasks()
         for index, score_path in enumerate(file_names):
+            index += 1
             if score_path[-3:] == 'xml' or score_path[-3:] == 'mxl':
                 print('\n', str(index) + '/' + str(len(file_names)) + " ########################################")
                 print("Working with " + score_path)
@@ -295,9 +292,11 @@ def file_dialog(root, file_formats, final_dir):
                 score_name = score_path.split('/')[-1]
                 final_score.write('xml', os.getcwd() + "\\SCORESEXPANDED\\"+ score_name[:-4]+".xml")
                 print("Expanded version stored in : ", os.getcwd() + "\\SCORESEXPANDED\\"+ score_name[:-4]+".xml")
-            progress['value'] = value
-            root.update_idletasks()
-    time.sleep(1)
+            progress['value'] = index
+            #progress.update()
+            root.update()
+            #root.update_idletasks()
+    time.sleep(2)
     root.destroy()
 
 if __name__ == "__main__":
