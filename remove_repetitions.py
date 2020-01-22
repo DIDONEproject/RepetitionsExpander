@@ -203,9 +203,9 @@ def get_measure_list(part_measures, repeat_elements):
             measures_list.append(fine_part) # Fine to end
         elif repeat[1] == "al segno" or repeat[1] == "dal segno":
             offset = measures_list[-1][-1].offset
+            # segnos' compass time signature
             segno_time_measure = [x for x in segno_part[0].elements if isinstance(x, m21.meter.TimeSignature)]
             segno_time_measure = segno_time_measure if len(segno_time_measure) != 0 else dc_time_signature[-1]
-            #TODO: añadir en el compás 1 del seño, elements, la medida del tiempo (4/4...)
             alsegno_list = measure_ranges(part_measures, s, f if there_is_fine else len(part_measures), iteration = 2 if repeat_bracket else None, offset=offset + compass, remove_repetition_marks = True)
             if not any(isinstance(x, m21.meter.TimeSignature) for x in alsegno_list[0].elements):
                 #we reset the time signature that was on the dacapo
@@ -216,7 +216,6 @@ def get_measure_list(part_measures, repeat_elements):
             offset = measures_list[-1][-1].offset
             if startsin0 and there_is_fine and not repeat_bracket:
                 f += 1
-            #TODO: añadir en el compás 1 del dc, elements, la medida del tiempo (4/4...) en el caso en el que sea una anacrusa 
             dacapo_list = measure_ranges(part_measures, 0 if startsin0 else 1, f if there_is_fine else len(part_measures), iteration = 2 if repeat_bracket else None, offset=offset + compass, remove_repetition_marks = True)
             measures_list.append(dacapo_list)
 
@@ -252,9 +251,7 @@ def slur_processing(part):
 def file_dialog(root, file_formats, final_dir):
     file_names = filedialog.askopenfilenames(parent = root, initialdir=os.getcwd(), title='Choose one or more files', filetypes = file_formats)
     print("FILES CHOOSED: ", file_names) 
-    # Progress bar widget 
     progress = ttk.Progressbar(root, orient = tk.HORIZONTAL, length = 100, mode = "determinate")
-    #button.place(relx=0.5, rely=1, anchor=tk.CENTER)
     progress.pack(pady = 10)
     progress['maximum'] = len(file_names)
     progress.start()
@@ -323,6 +320,4 @@ if __name__ == "__main__":
     button = tk.Button(chooser, text= "Browse", command = lambda: file_dialog(chooser, file_formats, final_dir))
     button.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
     button.pack(pady = 10)
-    #file_names = filedialog.askopenfilenames(parent = button, initialdir=os.getcwd(), title='Choose one or more files', filetypes = file_formats)
-    #chooser.destroy()
     chooser.mainloop()
