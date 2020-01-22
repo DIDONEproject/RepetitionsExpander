@@ -4,8 +4,9 @@ import itertools
 import copy
 import pyfiglet
 import tkinter as tk
+from tkinter import ttk
 from tkinter import filedialog
-
+import time
 file_names = []
 
 def measure_ranges(instrument_measures, init, end, iteration=None, offset=None, twoCompasses=False, remove_repetition_marks = False):
@@ -248,8 +249,59 @@ def slur_processing(part):
                         slur.addSpannedElements(notes[i])
                 i += 1
 
-def file_dialog(root, file_formats):
+def file_dialog(root, file_formats, final_dir):
     file_names = filedialog.askopenfilenames(parent = root, initialdir=os.getcwd(), title='Choose one or more files', filetypes = file_formats)
+    print("FILES CHOOSED: ", file_names) 
+    # Progress bar widget 
+    progress = ttk.Progressbar(root, orient = tk.HORIZONTAL, length = 100, mode = "determinate")
+    #button.place(relx=0.5, rely=1, anchor=tk.CENTER)
+    progress.pack(pady = 10)
+    progress['maximum'] = len(file_names)
+    progress.start()
+    root.update_idletasks()
+    progress['value'] = 0
+    
+    if not os.path.isdir(final_dir):
+        os.mkdir(final_dir)
+    if len(file_names) != 0:
+        value = 100/len(file_names)
+        progress.step(1)
+        root.update_idletasks()
+        for index, score_path in enumerate(file_names):
+            if score_path[-3:] == 'xml' or score_path[-3:] == 'mxl':
+                print('\n', str(index) + '/' + str(len(file_names)) + " ########################################")
+                print("Working with " + score_path)
+                
+                score = m21.converter.parse(score_path)
+                repeat_elements = get_repeat_elements(score) #returns all the existing repeat elements (only in the first voice)
+                score = expand_repeat_bars(score) # FIRST EXPAND REPEAT BARS
+                final_score = m21.stream.Score()
+                final_score.metadata = score.metadata
+                
+                if len(repeat_elements) > 0:
+                    for part in score.parts:
+                        part_measures = get_instrument_elements(part.elements) #returns the measures with repetitions
+                        p = m21.stream.Part()
+                        p.id = part.id
+                        p.partName = part.partName      
+                        
+                        part_measures_expanded = get_measure_list(part_measures, repeat_elements) #returns the measures expanded
+                        part_measures_expanded = list(itertools.chain(*part_measures_expanded))
+                        p.elements = sorted(tuple(part_measures_expanded), key =lambda x: x.offset)
+
+                        final_score.insert(0, p)
+                    
+                    if p.elements[0].measureNumber == 0:
+                        print("This score starts in anacrusis")
+                else:
+                    final_score = score
+                score_name = score_path.split('/')[-1]
+                final_score.write('xml', os.getcwd() + "\\SCORESEXPANDED\\"+ score_name[:-4]+".xml")
+                print("Expanded version stored in : ", os.getcwd() + "\\SCORESEXPANDED\\"+ score_name[:-4]+".xml")
+            progress['value'] = value
+            root.update_idletasks()
+    time.sleep(1)
+    root.destroy()
 
 if __name__ == "__main__":
     global log
@@ -265,44 +317,12 @@ if __name__ == "__main__":
     list_operas = []
     chooser = tk.Tk()
     chooser.title("Repetitions expander")
-    button = tk.Button(chooser, text= "Choose several scores to expand", width = '30', height = '20', command = lambda: file_dialog(chooser, file_formats))
-    button.pack()
-    chooser.mainloop()
-    chooser.quit()
+    chooser.geometry('300x150')
+    label = tk.Label(chooser, text="Welcome to the repetition expander. \n Please, choose several XML or MXL files to expand.")
+    label.pack()
+    button = tk.Button(chooser, text= "Browse", command = lambda: file_dialog(chooser, file_formats, final_dir))
+    button.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+    button.pack(pady = 10)
     #file_names = filedialog.askopenfilenames(parent = button, initialdir=os.getcwd(), title='Choose one or more files', filetypes = file_formats)
-    print("FILES CHOOSED: ", file_names) 
-
-    if not os.path.isdir(final_dir):
-        os.mkdir(final_dir)
-        
-    for index, score_path in enumerate(file_names):
-        if score_path[-3:] == 'xml' or score_path[-3:] == 'mxl':
-            print('\n', str(index) + '/' + str(len(file_names)) + " ########################################")
-            print("Working with " + score_path)
-
-            score = m21.converter.parse(score_path)
-            repeat_elements = get_repeat_elements(score) #returns all the existing repeat elements (only in the first voice)
-            score = expand_repeat_bars(score) # FIRST EXPAND REPEAT BARS
-            final_score = m21.stream.Score()
-            final_score.metadata = score.metadata
-            
-            if len(repeat_elements) > 0:
-                for part in score.parts:
-                    part_measures = get_instrument_elements(part.elements) #returns the measures with repetitions
-                    p = m21.stream.Part()
-                    p.id = part.id
-                    p.partName = part.partName      
-                    
-                    part_measures_expanded = get_measure_list(part_measures, repeat_elements) #returns the measures expanded
-                    part_measures_expanded = list(itertools.chain(*part_measures_expanded))
-                    p.elements = sorted(tuple(part_measures_expanded), key =lambda x: x.offset)
-
-                    final_score.insert(0, p)
-                
-                if p.elements[0].measureNumber == 0:
-                    print("This score starts in anacrusis")
-            else:
-                final_score = score
-            score_name = score_path.split('/')[-1]
-            final_score.write('xml', os.getcwd() + "\\SCORESEXPANDED\\"+ score_name[:-4]+".xml")
-            print("Expanded version stored in : ", os.getcwd() + "\\SCORESEXPANDED\\"+ score_name[:-4]+".xml")
+    #chooser.destroy()
+    chooser.mainloop()
