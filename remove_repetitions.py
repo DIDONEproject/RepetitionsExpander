@@ -7,7 +7,9 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
 import time
+import copy
 file_names = []
+repeat_bracket = False
 
 def measure_ranges(instrument_measures, init, end, iteration=None, offset=None, twoCompasses=False, remove_repetition_marks = False):
     measures = []
@@ -18,7 +20,7 @@ def measure_ranges(instrument_measures, init, end, iteration=None, offset=None, 
     init_index = instrument_measures.index([m for m in instrument_measures if m.measureNumber == init][0])
     end_compass = [m for m in instrument_measures if m.measureNumber == end]
     end_index = instrument_measures.index(end_compass[0]) if len(end_compass) > 0 else len(instrument_measures) - 1
-    for i in range(init_index, end_index + 1): # -5 just in case the measure number doesn't correspond to the index
+    for i in range(init_index, end_index + 1):
         if not i < 0 and i < len(instrument_measures) and instrument_measures[i].measureNumber >= int(init) and instrument_measures[i].measureNumber <= int(end):
             if not twoCompasses:
                 compass = instrument_measures[i].quarterLength
@@ -88,10 +90,9 @@ def get_repeat_elements(score):
 def expand_repeat_bars(score):
     final_score = m21.stream.Score()
     final_score.metadata = score.metadata
-
+    exist_repetition_bars = False
     #find repeat bars and expand
     for instr in score.parts:
-        exist_repetition_bars = False
         part_measures = get_instrument_elements(instr.elements) #returns the measures with repetitions
         last_measure = part_measures[-1].measureNumber
         part_measures_expanded = []
@@ -249,25 +250,28 @@ def slur_processing(part):
                 i += 1
 
 def file_dialog(root, file_formats, final_dir):
-    file_names = filedialog.askopenfilenames(parent = root, initialdir=os.getcwd(), title='Choose one or more files', filetypes = file_formats)
+    file_names = filedialog.askopenfilenames(parent = root, initialdir=os.getcwd(), title='Choose one or more files', filetypes = file_formats, multiple = True)
     print("FILES CHOOSED: ", file_names) 
     
     progress = ttk.Progressbar(root, orient = tk.HORIZONTAL, length = 100, mode = "determinate", maximum=len(file_names))
     progress.pack()
-    #progress.start()
     root.update()
     
     if not os.path.isdir(final_dir):
         os.mkdir(final_dir)
+
+    #chivato = open(os.getcwd()+"/chivato_dcAnacrusa.txt", "a")
     if len(file_names) != 0:
         for index, score_path in enumerate(file_names):
             index += 1
             if score_path[-3:] == 'xml' or score_path[-3:] == 'mxl':
                 print('\n', str(index) + '/' + str(len(file_names)) + " ########################################")
                 print("Working with " + score_path)
-                
                 score = m21.converter.parse(score_path)
                 repeat_elements = get_repeat_elements(score) #returns all the existing repeat elements (only in the first voice)
+                """if any(r[1] == 'da capo' for r in repeat_elements) and any(e.measureNumber == 0 for p in score.parts for e in p.elements):
+                    chivato.write(score_path + '\n')
+                    print("Me voy a chivar!")"""
                 score = expand_repeat_bars(score) # FIRST EXPAND REPEAT BARS
                 final_score = m21.stream.Score()
                 final_score.metadata = score.metadata
@@ -281,7 +285,17 @@ def file_dialog(root, file_formats, final_dir):
                         
                         part_measures_expanded = get_measure_list(part_measures, repeat_elements) #returns the measures expanded
                         part_measures_expanded = list(itertools.chain(*part_measures_expanded))
-                        p.elements = sorted(tuple(part_measures_expanded), key =lambda x: x.offset)
+                        part_measures_expanded = sorted(tuple(part_measures_expanded), key =lambda x: x.offset)
+                        # Assign a new continuous compass number to every measure
+                        measure_number = 0 if part_measures_expanded[0].measureNumber == 0 else 1
+                        for i, e in enumerate(part_measures_expanded):
+                            m = m21.stream.Measure(number = measure_number)
+                            m.elements = e.elements
+                            m.offset  = e.offset
+                            m.quarterLength = e.quarterLength
+                            part_measures_expanded[i] = m
+                            measure_number += 1
+                        p.elements = part_measures_expanded
 
                         final_score.insert(0, p)
                     
@@ -297,10 +311,10 @@ def file_dialog(root, file_formats, final_dir):
             root.update()
             #root.update_idletasks()
     time.sleep(2)
+    #chivato.close()
     root.destroy()
 
 if __name__ == "__main__":
-    global log
     file_formats = [("MusicXML", ".xml"), ("Compressed MusicXML", ".mxl")]
     print(pyfiglet.figlet_format("Repetitions Expander", font = "banner3-D", width=120 ))
     print(pyfiglet.figlet_format("Didone Project", font = "banner3-D", width=200 ))
