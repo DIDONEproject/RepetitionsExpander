@@ -37,14 +37,18 @@ def measure_ranges(instrument_measures, init, end, iteration=None, offset=None, 
                     o += compass
                 
                 measures.append(m)
-                if instrument_measures[i].measureNumber is not 0.0:
+                if instrument_measures[i].measureNumber is not 0.0 and instrument_measures[i].offset != 0:
                     last_offset = instrument_measures[i].offset + compass
             twoCompasses = False
     
-    if iteration is 1:
+    """if iteration is 1:
         measures = measures[:-1]
     elif iteration is 2:
-        measures = measures[:-2] + [measures[-1]]
+        measures = measures[:-2] + [measures[-1]]"""
+    if iteration is 2:
+        last_measure = instrument_measures[i + 1]
+        last_measure.offset = measures[-1].offset
+        measures = measures[:-1] + [last_measure]
     return measures
 
 def get_instrument_elements(part):
@@ -74,12 +78,16 @@ def get_repeat_elements(score):
             if isinstance(elem, m21.stream.Measure):
                 for e in elem:
                     if isinstance(e, m21.repeat.RepeatMark) and not isinstance(e, m21.bar.Repeat):
-                        instr_repeat_elements.append((e.measureNumber, e.name))
+                        measure = e.measureNumber
+                        if elem.numberSuffix == 'X1': #Exception
+                            measure += 1
+                        instr_repeat_elements.append((measure, e.name))
             elif isinstance(elem, m21.spanner.RepeatBracket):
                 repeat_bracket = True
                 string_e = str(elem)
                 index = string_e.find("music21.stream.Measure")
-                measure = string_e[index:].replace("music21.stream.Measure", '')[1:3].strip()
+                string_e = string_e[index:].replace("music21.stream.Measure", '')
+                measure = string_e[1:3].strip() #if 'X1' not in string_e else str(int(string_e[1:3].strip()) + 1)
                 instr_repeat_elements.append((int(measure), "repeat bracket" + elem.number))
         repeat_elements.update(instr_repeat_elements)
     
@@ -183,7 +191,7 @@ def get_measure_list(part_measures, repeat_elements):
         measures_list.append(before_segno) #S -1 OR S-> when segno in compass 1, s, else s-1?
         dc_time_signature = [y for x in before_segno for y in x.elements if isinstance(y, m21.meter.TimeSignature)]
     elif there_is_fine:
-        measures_list.append(measure_ranges(part_measures,1 if not startsin0 else 0, f, iteration = 1 if repeat_bracket else None))
+        measures_list.append(measure_ranges(part_measures,1 if not startsin0 else 0, f - 1, iteration = 1 if repeat_bracket else None))
     else:
         measures_list.append(measure_ranges(part_measures,1 if not startsin0 else 0, len(part_measures), iteration = 1 if repeat_bracket else None))
 
@@ -193,12 +201,12 @@ def get_measure_list(part_measures, repeat_elements):
 
         if repeat[1] == "segno":
             offset = measures_list[-1][-1].offset
-            segno_part = measure_ranges(part_measures, s, f if there_is_fine else len(part_measures), iteration = 1 if repeat_bracket else None, offset = offset + compass, remove_repetition_marks = True)
+            segno_part = measure_ranges(part_measures, s, f - 1 if there_is_fine else len(part_measures), iteration = 1 if repeat_bracket else None, offset = offset + compass, remove_repetition_marks = True)
             measures_list.append(segno_part) # Segno to Fine
         elif repeat[1] == "fine":
             twoCompasses = False
-            if len(repeat_measure) > 0:
-                twoCompasses = True
+            """if len(repeat_measure) > 0:
+                twoCompasses = True"""
             offset = measures_list[-1][-1].offset
             fine_part = measure_ranges(part_measures, f, len(part_measures), offset = offset + compass, twoCompasses=twoCompasses, remove_repetition_marks = True)
             measures_list.append(fine_part) # Fine to end
@@ -207,7 +215,7 @@ def get_measure_list(part_measures, repeat_elements):
             # segnos' compass time signature
             segno_time_measure = [x for x in segno_part[0].elements if isinstance(x, m21.meter.TimeSignature)]
             segno_time_measure = segno_time_measure if len(segno_time_measure) != 0 else dc_time_signature[-1]
-            alsegno_list = measure_ranges(part_measures, s, f if there_is_fine else len(part_measures), iteration = 2 if repeat_bracket else None, offset=offset + compass, remove_repetition_marks = True)
+            alsegno_list = measure_ranges(part_measures, s, f - 1 if there_is_fine else len(part_measures), iteration = 2 if repeat_bracket else None, offset=offset + compass, remove_repetition_marks = True)
             if not any(isinstance(x, m21.meter.TimeSignature) for x in alsegno_list[0].elements):
                 #we reset the time signature that was on the dacapo
                 alsegno_list[0].elements = tuple([segno_time_measure] + list(alsegno_list[0].elements))
@@ -217,7 +225,7 @@ def get_measure_list(part_measures, repeat_elements):
             offset = measures_list[-1][-1].offset
             if startsin0 and there_is_fine and not repeat_bracket:
                 f += 1
-            dacapo_list = measure_ranges(part_measures, 0 if startsin0 else 1, f if there_is_fine else len(part_measures), iteration = 2 if repeat_bracket else None, offset=offset + compass, remove_repetition_marks = True)
+            dacapo_list = measure_ranges(part_measures, 0 if startsin0 else 1, f - 1 if there_is_fine else len(part_measures), iteration = 2 if repeat_bracket else None, offset=offset + compass, remove_repetition_marks = True)
             measures_list.append(dacapo_list)
 
     return measures_list
@@ -249,6 +257,37 @@ def slur_processing(part):
                         slur.addSpannedElements(notes[i])
                 i += 1
 
+def expand_score_repetitions(score, repeat_elements):
+    score = expand_repeat_bars(score) # FIRST EXPAND REPEAT BARS
+    final_score = m21.stream.Score()
+    final_score.metadata = score.metadata
+    
+    if len(repeat_elements) > 0:
+        for part in score.parts:
+            part_measures = get_instrument_elements(part.elements) #returns the measures with repetitions
+            p = m21.stream.Part()
+            p.id = part.id
+            p.partName = part.partName      
+            
+            part_measures_expanded = get_measure_list(part_measures, repeat_elements) #returns the measures expanded
+            part_measures_expanded = list(itertools.chain(*part_measures_expanded))
+            #part_measures_expanded = sorted(tuple(part_measures_expanded), key =lambda x: x.offset)
+            # Assign a new continuous compass number to every measure
+            measure_number = 0 if part_measures_expanded[0].measureNumber == 0 else 1
+            for i, e in enumerate(part_measures_expanded):
+                m = m21.stream.Measure(number = measure_number)
+                m.elements = e.elements
+                m.offset  = e.offset
+                m.quarterLength = e.quarterLength
+                part_measures_expanded[i] = m
+                measure_number += 1
+            p.elements = part_measures_expanded
+
+            final_score.insert(0, p)
+    else:
+        final_score = score
+    return final_score
+
 def file_dialog(root, file_formats, final_dir):
     file_names = filedialog.askopenfilenames(parent = root, initialdir=os.getcwd(), title='Choose one or more files', filetypes = file_formats, multiple = True)
     print("FILES CHOOSED: ", file_names) 
@@ -272,44 +311,12 @@ def file_dialog(root, file_formats, final_dir):
                 """if any(r[1] == 'da capo' for r in repeat_elements) and any(e.measureNumber == 0 for p in score.parts for e in p.elements):
                     chivato.write(score_path + '\n')
                     print("Me voy a chivar!")"""
-                score = expand_repeat_bars(score) # FIRST EXPAND REPEAT BARS
-                final_score = m21.stream.Score()
-                final_score.metadata = score.metadata
-                
-                if len(repeat_elements) > 0:
-                    for part in score.parts:
-                        part_measures = get_instrument_elements(part.elements) #returns the measures with repetitions
-                        p = m21.stream.Part()
-                        p.id = part.id
-                        p.partName = part.partName      
-                        
-                        part_measures_expanded = get_measure_list(part_measures, repeat_elements) #returns the measures expanded
-                        part_measures_expanded = list(itertools.chain(*part_measures_expanded))
-                        part_measures_expanded = sorted(tuple(part_measures_expanded), key =lambda x: x.offset)
-                        # Assign a new continuous compass number to every measure
-                        measure_number = 0 if part_measures_expanded[0].measureNumber == 0 else 1
-                        for i, e in enumerate(part_measures_expanded):
-                            m = m21.stream.Measure(number = measure_number)
-                            m.elements = e.elements
-                            m.offset  = e.offset
-                            m.quarterLength = e.quarterLength
-                            part_measures_expanded[i] = m
-                            measure_number += 1
-                        p.elements = part_measures_expanded
-
-                        final_score.insert(0, p)
-                    
-                    if p.elements[0].measureNumber == 0:
-                        print("This score starts in anacrusis")
-                else:
-                    final_score = score
+                final_score = expand_score_repetitions(score, repeat_elements)
                 score_name = score_path.split('/')[-1]
                 final_score.write('xml', os.getcwd() + "\\SCORESEXPANDED\\"+ score_name[:-4]+".xml")
                 print("Expanded version stored in : ", os.getcwd() + "\\SCORESEXPANDED\\"+ score_name[:-4]+".xml")
             progress['value'] = index
-            #progress.update()
             root.update()
-            #root.update_idletasks()
     time.sleep(2)
     #chivato.close()
     root.destroy()
