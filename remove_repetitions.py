@@ -86,8 +86,8 @@ def get_repeat_elements(score):
                 repeat_bracket = True
                 string_e = str(elem)
                 index = string_e.find("music21.stream.Measure")
-                string_e = string_e[index:].replace("music21.stream.Measure", '')
-                measure = string_e[1:3].strip() #if 'X1' not in string_e else str(int(string_e[1:3].strip()) + 1)
+                string_e = string_e[index:].replace("music21.stream.Measure ", '')
+                measure = string_e.split(' ')[0].strip().replace('X1', '')
                 instr_repeat_elements.append((int(measure), "repeat bracket" + elem.number))
         repeat_elements.update(instr_repeat_elements)
     
@@ -267,7 +267,7 @@ def expand_score_repetitions(score, repeat_elements):
             part_measures = get_instrument_elements(part.elements) #returns the measures with repetitions
             p = m21.stream.Part()
             p.id = part.id
-            p.partName = part.partName      
+            p.partName = part.partName
             
             part_measures_expanded = get_measure_list(part_measures, repeat_elements) #returns the measures expanded
             part_measures_expanded = list(itertools.chain(*part_measures_expanded))
