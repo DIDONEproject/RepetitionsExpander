@@ -66,7 +66,7 @@ def get_instrument_elements(part):
                     last_duration = note.duration.quarterLength
     return measures
 
-def get_repeat_elements(score):
+def get_repeat_elements(score, v = True):
     global repeat_bracket
     repeat_bracket = False
     # 1. Get the repeat elements
@@ -92,7 +92,8 @@ def get_repeat_elements(score):
         repeat_elements.update(instr_repeat_elements)
     
     repeat_elements = sorted(list(repeat_elements), key=lambda tup:tup[0])
-    print("The repeat elements found in this score are: " + str(repeat_elements))
+    if v: #VERBOSE
+        print("The repeat elements found in this score are: " + str(repeat_elements))
     return repeat_elements
 
 def expand_repeat_bars(score):
