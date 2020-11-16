@@ -2,9 +2,6 @@ import music21 as m21
 import os
 import itertools
 import copy
-import tkinter as tk
-from tkinter import ttk
-from tkinter import filedialog
 import time
 
 file_names = []
@@ -289,6 +286,9 @@ def expand_score_repetitions(score, repeat_elements):
     return final_score
 
 def file_dialog(root, file_formats, final_dir):
+    import tkinter as tk
+    from tkinter import ttk
+    
     file_names = filedialog.askopenfilenames(parent = root, initialdir=os.getcwd(), title='Choose one or more files', filetypes = file_formats, multiple = True)
     print("FILES CHOOSED: ", file_names) 
     
@@ -322,6 +322,10 @@ def file_dialog(root, file_formats, final_dir):
     root.destroy()
 
 if __name__ == "__main__":
+    import tkinter as tk
+    from tkinter import ttk
+    from tkinter import filedialog
+
     file_formats = [("MusicXML", ".xml"), ("Compressed MusicXML", ".mxl")]
 
     print("Initiating repetitions expander...")
