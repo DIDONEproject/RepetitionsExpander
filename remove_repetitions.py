@@ -79,7 +79,7 @@ def get_repeat_elements(score, v = True):
                 for e in elem:
                     if isinstance(e, m21.repeat.RepeatMark) and not isinstance(e, m21.bar.Repeat):
                         measure = e.measureNumber
-                        if elem.numberSuffix == 'X1': #Exception
+                        if elem.numberSuffix in ['X1', 'X2']: #Exception
                             measure += 1
                         instr_repeat_elements.append((measure, e.name))
             elif isinstance(elem, m21.spanner.RepeatBracket):
@@ -87,7 +87,7 @@ def get_repeat_elements(score, v = True):
                 string_e = str(elem)
                 index = string_e.find("music21.stream.Measure")
                 string_e = string_e[index:].replace("music21.stream.Measure ", '')
-                measure = string_e.split(' ')[0].strip().replace('X1', '')
+                measure = string_e.split(' ')[0].strip().replace('X1', '').replace('X2', '')
                 instr_repeat_elements.append((int(measure), "repeat bracket" + elem.number))
         repeat_elements.update(instr_repeat_elements)
     
