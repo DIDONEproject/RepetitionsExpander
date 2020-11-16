@@ -2,12 +2,11 @@ import music21 as m21
 import os
 import itertools
 import copy
-import pyfiglet
 import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
 import time
-import copy
+
 file_names = []
 repeat_bracket = False
 
@@ -324,8 +323,7 @@ def file_dialog(root, file_formats, final_dir):
 
 if __name__ == "__main__":
     file_formats = [("MusicXML", ".xml"), ("Compressed MusicXML", ".mxl")]
-    print(pyfiglet.figlet_format("Repetitions Expander", font = "banner3-D", width=120 ))
-    print(pyfiglet.figlet_format("Didone Project", font = "banner3-D", width=200 ))
+
     print("Initiating repetitions expander...")
     print("This program takes a xml score and returns an xml in the current working directory /SCORESEXPANDED")
     print("Warning: This program doesn't maintain the slurs (by the moment)")
