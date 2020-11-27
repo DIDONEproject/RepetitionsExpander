@@ -1,3 +1,6 @@
+[![DOI](https://zenodo.org/badge/235376482.svg)](https://zenodo.org/badge/latestdoi/235376482)
+
+
 # Repetitions-Expander
 Script that expands the repetition marks, such as repetition bars, Da Capo or Dal Segno, in a MusicXML score.
 
