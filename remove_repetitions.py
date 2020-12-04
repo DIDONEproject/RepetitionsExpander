@@ -254,6 +254,27 @@ def slur_processing(part):
                         slur.addSpannedElements(notes[i])
                 i += 1
 
+def expand_part(part, repeat_elements):
+    part_measures = get_instrument_elements(part.elements) #returns the measures with repetitions
+    p = m21.stream.Part()
+    p.id = part.id
+    p.partName = part.partName
+    
+    part_measures_expanded = get_measure_list(part_measures, repeat_elements) #returns the measures expanded
+    part_measures_expanded = list(itertools.chain(*part_measures_expanded))
+    #part_measures_expanded = sorted(tuple(part_measures_expanded), key =lambda x: x.offset)
+    # Assign a new continuous compass number to every measure
+    measure_number = 0 if part_measures_expanded[0].measureNumber == 0 else 1
+    for i, e in enumerate(part_measures_expanded):
+        m = m21.stream.Measure(number = measure_number)
+        m.elements = e.elements
+        m.offset  = e.offset
+        m.quarterLength = e.quarterLength
+        part_measures_expanded[i] = m
+        measure_number += 1
+    p.elements = part_measures_expanded
+    return p
+    
 def expand_score_repetitions(score, repeat_elements):
     score = expand_repeat_bars(score) # FIRST EXPAND REPEAT BARS
     final_score = m21.stream.Score()
@@ -261,29 +282,13 @@ def expand_score_repetitions(score, repeat_elements):
     
     if len(repeat_elements) > 0:
         for part in score.parts:
-            part_measures = get_instrument_elements(part.elements) #returns the measures with repetitions
-            p = m21.stream.Part()
-            p.id = part.id
-            p.partName = part.partName
-            
-            part_measures_expanded = get_measure_list(part_measures, repeat_elements) #returns the measures expanded
-            part_measures_expanded = list(itertools.chain(*part_measures_expanded))
-            #part_measures_expanded = sorted(tuple(part_measures_expanded), key =lambda x: x.offset)
-            # Assign a new continuous compass number to every measure
-            measure_number = 0 if part_measures_expanded[0].measureNumber == 0 else 1
-            for i, e in enumerate(part_measures_expanded):
-                m = m21.stream.Measure(number = measure_number)
-                m.elements = e.elements
-                m.offset  = e.offset
-                m.quarterLength = e.quarterLength
-                part_measures_expanded[i] = m
-                measure_number += 1
-            p.elements = part_measures_expanded
+            p = expand_part(part, repeat_elements)
 
             final_score.insert(0, p)
     else:
         final_score = score
     return final_score
+
 
 def file_dialog(root, file_formats, final_dir):
     import tkinter as tk
@@ -308,9 +313,6 @@ def file_dialog(root, file_formats, final_dir):
                 print("Working with " + score_path)
                 score = m21.converter.parse(score_path)
                 repeat_elements = get_repeat_elements(score) #returns all the existing repeat elements (only in the first voice)
-                """if any(r[1] == 'da capo' for r in repeat_elements) and any(e.measureNumber == 0 for p in score.parts for e in p.elements):
-                    chivato.write(score_path + '\n')
-                    print("Me voy a chivar!")"""
                 final_score = expand_score_repetitions(score, repeat_elements)
                 score_name = score_path.split('/')[-1]
                 final_score.write('xml', os.getcwd() + "\\SCORESEXPANDED\\"+ score_name[:-4]+".xml")
