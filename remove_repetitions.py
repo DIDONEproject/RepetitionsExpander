@@ -1,4 +1,6 @@
-import music21 as m21 
+from os import path
+
+import music21 as m21
 import os
 import itertools
 import copy
@@ -315,8 +317,9 @@ def file_dialog(root, file_formats, final_dir):
                 repeat_elements = get_repeat_elements(score) #returns all the existing repeat elements (only in the first voice)
                 final_score = expand_score_repetitions(score, repeat_elements)
                 score_name = score_path.split('/')[-1]
-                final_score.write('xml', os.getcwd() + "\\SCORESEXPANDED\\"+ score_name[:-4]+".xml")
-                print("Expanded version stored in : ", os.getcwd() + "\\SCORESEXPANDED\\"+ score_name[:-4]+".xml")
+                scores_expanded_file = path.join(os.getcwd(), "SCORESEXPANDED", score_name[:-4]+".xml")
+                final_score.write('xml', scores_expanded_file)
+                print("Expanded version stored in : ", scores_expanded_file)
             progress['value'] = index
             root.update()
     time.sleep(2)
